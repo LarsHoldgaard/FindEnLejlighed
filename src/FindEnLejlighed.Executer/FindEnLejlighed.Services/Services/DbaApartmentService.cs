@@ -17,8 +17,21 @@ namespace FindEnLejlighed.Services.Services
         {
             var html = GetBaseHtml(CollectUrls());
 
+            foreach (var singleHtml in html)
+            {
+                
+            }
+
             return new List<Apartment>();
         }
+
+        #region Get single apartment link
+
+
+
+        #endregion
+
+        #region GetHtml structure
 
         private List<string> GetBaseHtml(List<string> urls)
         {
@@ -50,6 +63,9 @@ namespace FindEnLejlighed.Services.Services
             }
 
             return urls;
-        } 
+        }
+
+        #endregion
+
     }
 }
