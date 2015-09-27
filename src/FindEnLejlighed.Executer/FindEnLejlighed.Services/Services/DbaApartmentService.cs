@@ -38,7 +38,21 @@ namespace FindEnLejlighed.Services.Services
 
         private Apartment ParseApartment(string url)
         {
-            return new Apartment();
+
+            Console.WriteLine("Pulling info from {0}",url);
+
+            using (var client = new WebClient())
+            {
+                var html = client.DownloadString(url);
+
+                return new Apartment()
+                {
+                    Link = url,
+                    ContactStatus = ContactStatus.New
+                };
+            }
+
+               
         }
 
         private List<string> GetApartmentLinksOnPage(string html)
@@ -95,7 +109,7 @@ namespace FindEnLejlighed.Services.Services
             List<string> urls = new List<string>();
             urls.Add(BasePath);
 
-            for (int i = 2; i <= 2; i++)
+            for (int i = 2; i <= 5; i++)
             {
                 var url = string.Format("{0}{1}{2}", BasePath, Paging, i);
                 urls.Add(url);
