@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 using FindEnLejlighed.Services.Domain;
+using HtmlAgilityPack;
 
 namespace FindEnLejlighed.Services.Services
 {
@@ -43,8 +45,27 @@ namespace FindEnLejlighed.Services.Services
         {
             List<string> urls = new List<string>();
 
+            HtmlDocument doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            var listingClass = "dbaListing";
+
+            var listings = doc.DocumentNode.SelectNodes(string.Format("//*[contains(@class,'{0}')]", listingClass));
+
+            foreach (var listing in listings)
+            {
+                var url = GetUrlOnListing(listing);
+                urls.Add(url);
+            }
+
             return urls;
-        } 
+        }
+
+        private string GetUrlOnListing(HtmlNode listingHtml)
+        {
+            return listingHtml.Descendants("a").FirstOrDefault().GetAttributeValue("href", "");
+
+        }
 
 
         #endregion
@@ -74,7 +95,7 @@ namespace FindEnLejlighed.Services.Services
             List<string> urls = new List<string>();
             urls.Add(BasePath);
 
-            for (int i = 2; i <= 10; i++)
+            for (int i = 2; i <= 2; i++)
             {
                 var url = string.Format("{0}{1}{2}", BasePath, Paging, i);
                 urls.Add(url);
