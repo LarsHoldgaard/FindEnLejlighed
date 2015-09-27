@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using FindEnLejlighed.Services.Domain;
 using HtmlAgilityPack;
+using static System.Decimal;
 
 namespace FindEnLejlighed.Services.Services
 {
@@ -38,21 +39,51 @@ namespace FindEnLejlighed.Services.Services
 
         private Apartment ParseApartment(string url)
         {
-
+            string html = string.Empty;
             Console.WriteLine("Pulling info from {0}",url);
 
             using (var client = new WebClient())
             {
-                var html = client.DownloadString(url);
+                html = client.DownloadString(url);
+  
+            }
+            var apartment = new Apartment()
+            {
+                ContactStatus = ContactStatus.New,
+                Link = url
+            };
 
-                return new Apartment()
+            FillApartment(apartment, html,url);
+
+            return apartment;
+
+        }
+
+        private void FillApartment(Apartment apartment, string html, string url)
+        {
+            try
+            {
+                HtmlDocument doc = new HtmlDocument();
+                doc.LoadHtml(html);
+
+                // price
+                var priceClass = "price-tag";
+                var priceNode = doc.DocumentNode.SelectNodes(string.Format("//*[contains(@class,'{0}')]", priceClass)).FirstOrDefault();
+
+                if (priceNode != null)
                 {
-                    Link = url,
-                    ContactStatus = ContactStatus.New
-                };
+                    var htmlPrice = priceNode.InnerHtml;
+                    var price = htmlPrice.Replace(" kr.", "").Replace(".","");
+
+                    apartment.Price = Parse(price);
+                }
+
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("No price on ", url);
             }
 
-               
         }
 
         private List<string> GetApartmentLinksOnPage(string html)
@@ -109,7 +140,7 @@ namespace FindEnLejlighed.Services.Services
             List<string> urls = new List<string>();
             urls.Add(BasePath);
 
-            for (int i = 2; i <= 5; i++)
+            for (int i = 2; i <=2; i++)
             {
                 var url = string.Format("{0}{1}{2}", BasePath, Paging, i);
                 urls.Add(url);

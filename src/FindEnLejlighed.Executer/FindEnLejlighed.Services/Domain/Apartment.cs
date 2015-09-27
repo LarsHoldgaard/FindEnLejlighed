@@ -11,5 +11,8 @@ namespace FindEnLejlighed.Services.Domain
         public int Id { get; set; }
         public string Link { get; set; }
         public ContactStatus ContactStatus { get; set; }
+        
+        public string Description { get; set; }
+        public decimal Price { get; set; }
     }
 }
