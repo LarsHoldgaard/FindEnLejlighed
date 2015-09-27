@@ -12,9 +12,10 @@ namespace FindEnLejlighed.Services.Database
     {
         public Context():base("Context")
         {
-            
         }
 
         public DbSet<Apartment> Apartments { get; set; }
+        public DbSet<SendMessage> SendMessages { get; set; }
+        
     }
 }

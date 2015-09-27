@@ -19,12 +19,12 @@ namespace FindEnLejlighed.Services.Services
     {
         private const string BasePath = "http://www.dba.dk/boliger/lejebolig/";
         private const string Paging = "side-";
-        private const int PageCount = 150;
+        private const int PageCount = 5;
 
-        private const string Dba_name = "Lars";
-        private const string Dba_email = "martin_sorensen@mail.com";
-        private const string Dba_phone = "";
-        private const string Dba_message = "Hej%0D%0A%0D%0AJeg+er+meget+interesserede+i+din+lejlighed%2C+specielt+er+jeg+vild+med+lejlighedens+placering%2C+kvarteret%2C+pris+og+st%C3%B8rrelse.+%0D%0A%0D%0AJeg+er+en+travl+person.+Jeg+arbejder+det+meste+af+tiden%2C+og+er+derfor+en+meget+nem+lejer%3A+%0D%0A-+Jeg+ryger+ikke%0D%0A-+Jeg+er+dygtig+med+h%C3%A6nderne%2C+og+kan+klare+de+fleste+h%C3%A5ndv%C3%A6rker+opgaver+selv+%0D%0A-+Jeg+holder+lejligheden+ren+og+p%C3%A6n+%0D%0A-+Jeg+har+begge+en+bund+solid+%C3%B8konomi%0D%0AJeg+er+fleksibel+med+indflytningsdato+og+kan+flytte+ind+n%C3%A5r+som+helst.%0D%0A%0D%0AVh%0D%0ALars";
+        private const string Dba_name = "Martin Carlsson";
+        private const string Dba_email = "martin@imus.dk";
+        private const string Dba_phone = "42927250";
+        private const string Dba_message = "Hej%0D%0A%0D%0AJeg+er+meget+interesseret+i+lejligheden%2C+specielt+er+jeg+vild+med+lejlighedens+placering%2C+kvarteret+og+st%C3%B8rrelse.+%0D%0A%0D%0AJeg+er+en+travl+person.+Jeg+arbejder+det+meste+af+tiden%2C+og+er+derfor+en+meget+nem+lejer%3A+%0D%0A-+Jeg+ryger+ikke%0D%0A-+Jeg+er+dygtig+med+h%C3%A6nderne%2C+og+kan+klare+de+fleste+h%C3%A5ndv%C3%A6rker+opgaver+selv+%0D%0A-+Jeg+holder+lejligheden+ren+og+p%C3%A6n+%0D%0A-+Jeg+har+en+solid+%C3%B8konomi%0D%0A-+Alts%C3%A5%2C+jeg+vil+passe+rigtigt+godt+p%C3%A5+din+lejlighed%0D%0A%0D%0AJeg+er+fleksibel+med+indflytningsdato.%0D%0A%0D%0AVh%0D%0AMartin+Carlsson";
 
         public List<Apartment> GetApartments()
         {
@@ -38,8 +38,14 @@ namespace FindEnLejlighed.Services.Services
                 Parallel.ForEach(links, apartmentLink =>
                 {
                     var apartment = ParseApartment(apartmentLink);
-                    apartments.Add(apartment);
-                    SaveApartment(apartment);
+
+                    if (apartment != null)
+                    {
+                        apartments.Add(apartment);
+                        var saved_apartment = SaveApartment(apartment);
+                        Send(saved_apartment);
+                    }
+
                 });
             }
 
@@ -52,15 +58,31 @@ namespace FindEnLejlighed.Services.Services
             if (apartment.ContactStatus != ContactStatus.Contacted && apartment.Link.Contains("-vaer") &&
                 !apartment.Link.Contains("1-vaer"))
             {
-                //if (LegalPostCode(apartment) && apartment.SellerType == "PRIVATE")
-                //{
+                if (LegalPostCode(apartment) && 
+                    apartment.SellerType == "PRIVATE" && 
+                    apartment.ContactStatus == ContactStatus.New &&
+                    apartment.Price >= 5000)
+                {
                     SendDba(apartment);
-                //}
+                }
             }
         }
 
         private bool LegalPostCode(Apartment apartment)
         {
+            if (string.IsNullOrEmpty(apartment.Postcode))
+            {
+                return false;
+            }
+
+            int tryParse = 0;
+            int.TryParse(apartment.Postcode, out tryParse);
+
+            if (tryParse <= 0)
+            {
+                return false;
+            }
+
             int post = int.Parse(apartment.Postcode);
 
             if ((post <= 2900) || ((post >= 3050) && (post <= 3060)) || ((post >= 3400) && (post <= 3460)))
@@ -72,86 +94,150 @@ namespace FindEnLejlighed.Services.Services
 
         private void SendDba(Apartment apartment)
         {
-            var currentHtml = string.Empty;
-            using (var client = new WebClient())
+            try
             {
-                currentHtml = client.DownloadString(apartment.Link);
+                CookieContainer cookies = new CookieContainer();
+
+                HttpWebRequest initial_request = (HttpWebRequest)WebRequest.Create(apartment.Link);
+                initial_request.CookieContainer = cookies;
+                HttpWebResponse initial_response = (HttpWebResponse)initial_request.GetResponse();
+
+                // Get the stream associated with the response.
+                Stream receiveStream = initial_response.GetResponseStream();
+
+                // Pipes the stream to a higher level stream reader with the required encoding format. 
+                StreamReader readStream = new StreamReader(receiveStream, Encoding.UTF8);
+                var currentHtml = readStream.ReadToEnd();
+
+                HtmlDocument doc = new HtmlDocument();
+                doc.LoadHtml(currentHtml);
+
+                var input = doc.DocumentNode
+                  .Descendants("input")
+                  .First(n => n.Attributes["name"].Value == "__RequestVerificationToken").GetAttributeValue("value", "");
+
+
+                var payload =
+                    string.Format(
+                        "__RequestVerificationToken={0}&SendEmailAnalyticsLabel=SendEmailPrivate&ExternalListingId={1}&IsCas=False&PayPalEnabledByClassification=False&Name={2}&Email={3}&PhoneNumber={4}&Message={5}&BccToSender=true",
+                        input,
+                        apartment.DbaId,
+                        Dba_name,
+                        Dba_email,
+                        Dba_phone,
+                        Dba_message);
+
+
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create("http://dba.dk/ajax/vip/ContactForm/SendEmail");
+                request.Method = "POST";
+                request.CookieContainer = cookies;
+                request.ContentType = "application/x-www-form-urlencoded; charset=UTF-8";
+                request.UserAgent =
+                    "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36";
+
+                request.Headers.Add("Accept-Language", "en-GB,en;q=0.8,en-US;q=0.6,da;q=0.4");
+                request.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip, deflate");
+
+
+                byte[] buf = Encoding.UTF8.GetBytes(payload);
+                request.ContentLength = buf.Length;
+
+                Stream newStream = request.GetRequestStream();
+
+                newStream.Write(buf, 0, buf.Length);
+
+
+
+                using (var context = new Context())
+                {
+                    var the_apartment = context.Apartments.FirstOrDefault(c => c.Id == apartment.Id);
+                    the_apartment.ContactStatus = ContactStatus.Contacted;
+
+                    var send = new SendMessage()
+                    {
+                        DbaId = apartment.DbaId,
+                        DateSent = DateTime.Now,
+                        Email = Dba_email,
+                        Message = Dba_message,
+                        Name = Dba_name,
+                        Phone = Dba_phone
+                    };
+                    context.SendMessages.Add(send);
+                    context.SaveChanges();
+                }
+
+
+                var HttpWebResponse = (HttpWebResponse)request.GetResponse();
             }
-
-            HtmlDocument doc = new HtmlDocument();
-            doc.LoadHtml(currentHtml);
-
-            var input = doc.DocumentNode
-              .Descendants("input")
-              .First(n => n.Attributes["name"].Value == "__RequestVerificationToken").GetAttributeValue("value","");
+            catch (Exception)
+            {
+                Console.WriteLine("Could not sent to ", apartment.Link);
+            }
+         
 
 
-            var payload =
-                string.Format(
-                    "__RequestVerificationToken={0}&SendEmailAnalyticsLabel=SendEmailPrivate&ExternalListingId={1}&IsCas=False&PayPalEnabledByClassification=False&Name={2}&Email={3}&PhoneNumber={4}&Message={5}&BccToSender=true",
-                    input,
-                    apartment.DbaId,
-                    Dba_name,
-                    Dba_email,
-                    Dba_phone,
-                    Dba_message);
 
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create("http://dba.dk/ajax/vip/ContactForm/SendEmail");
-            request.Method = "POST";
-            request.ContentType = "application/x-www-form-urlencoded; charset=UTF-8";
-            request.UserAgent =
-                "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36";
-
-            request.Headers.Add("Accept-Language", "en-GB,en;q=0.8,en-US;q=0.6,da;q=0.4");
-            request.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip, deflate");
-
-
-            byte[] buf = Encoding.UTF8.GetBytes(payload);
-            request.ContentLength = buf.Length;
-
-            Stream newStream = request.GetRequestStream();
-
-            newStream.Write(buf, 0, buf.Length);
-
-   
-            var HttpWebResponse = (HttpWebResponse)request.GetResponse();
         }
 
 
 
-        private void SaveApartment(Apartment apartment)
+        private Apartment SaveApartment(Apartment apartment)
         {
-            var context = new Context();
-
-            if (!context.Apartments.Any(c => c.Link == apartment.Link))
+            int id = 0;
+            using (var context = new Context())
             {
-                context.Apartments.Add(apartment);
-                context.SaveChanges();
+                if (!context.Apartments.Any(c => c.Link == apartment.Link))
+                {
+                    context.Apartments.Add(apartment);
+                    context.SaveChanges();
+
+                    id = apartment.Id;
+
+                    return context.Apartments.FirstOrDefault(c => c.Id == id);
+                }
+                else
+                {
+                    var existing_apartment = context.Apartments.FirstOrDefault(c => c.Link == apartment.Link);
+                    return existing_apartment;
+                }
+
+                
             }
+                
+            
         }
 
         #region Get single apartment link
 
         private Apartment ParseApartment(string url)
         {
-            string html = string.Empty;
-            Console.WriteLine("Pulling info from {0}", url);
-
-            using (var client = new WebDownload())
+            try
             {
-                html = client.DownloadString(url);
+                string html = string.Empty;
+                Console.WriteLine("Pulling info from {0}", url);
 
+                using (var client = new WebDownload())
+                {
+                    html = client.DownloadString(url);
+
+                }
+                var apartment = new Apartment()
+                {
+                    ContactStatus = ContactStatus.New,
+                    Link = url,
+                    DateCreated = DateTime.Now
+                };
+
+                FillApartment(apartment, html, url);
+
+                return apartment;
             }
-            var apartment = new Apartment()
+            catch (Exception)
             {
-                ContactStatus = ContactStatus.New,
-                Link = url,
-                DateCreated = DateTime.Now
-            };
-
-            FillApartment(apartment, html, url);
-
-            return apartment;
+                Console.WriteLine("Timeout on parse apartment");
+                return null;
+            }
+       
 
         }
 

@@ -16,16 +16,7 @@ namespace FindEnLejlighed.Executer
         {
            IApartmentService service = new DbaApartmentService();
 
-            var apartment = new Apartment()
-            {
-                DbaId = 1018746576,
-                Link = "http://www.dba.dk/4840-villa-5-vaer/id-1018746576/",
-                Postcode = "2100"
-            };
-
-            service.Send(apartment);
-
-            //  var apartments = service.GetApartments();
+            var apartments = service.GetApartments();
         }
     }
 }
