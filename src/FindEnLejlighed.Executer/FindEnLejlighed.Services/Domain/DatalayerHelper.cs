@@ -53,13 +53,24 @@ namespace FindEnLejlighed.Services.Domain
 
     public class Attr
     {
-        public string Propertytype { get; set; }
+
         public string CityRegion { get; set; }
-        public string Minnumberofrooms { get; set; }
-        public string minlivingspace { get; set; }
-        public string RentalPeriod { get; set; }
+
         public string TakeoverDate { get; set; }
         public string SELLER_TYPE { get; set; }
+        public string Postcode { get; set; }
+        public string minlivingspace { get; set; }
+        public string RentalPeriod { get; set; }
+        public string Minnumberofrooms { get; set; }
+
+        public string Propertytype { get; set; }
+        public string Boligkvm { get; set; }
+        public string Deposit { get; set; }
+        public string partlyfurnished { get; set; }
+        public string Washingmachine { get; set; }
+        public string basement { get; set; }
+
+
     }
 
     public class D

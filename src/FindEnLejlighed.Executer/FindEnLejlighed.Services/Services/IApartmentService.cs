@@ -10,5 +10,6 @@ namespace FindEnLejlighed.Services.Services
     public interface IApartmentService
     {
         List<Apartment> GetApartments();
+        void Send(Apartment apartment);
     }
 }
