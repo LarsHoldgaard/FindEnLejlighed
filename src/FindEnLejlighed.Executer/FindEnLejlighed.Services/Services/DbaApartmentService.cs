@@ -15,18 +15,36 @@ namespace FindEnLejlighed.Services.Services
         private const string Paging = "side-";
         public List<Apartment> GetApartments()
         {
+            List<Apartment> apartments = new List<Apartment>();
             var html = GetBaseHtml(CollectUrls());
 
             foreach (var singleHtml in html)
             {
-                
+                var links = GetApartmentLinksOnPage(singleHtml);
+
+                foreach (var apartmentLink in links)
+                {
+                    var apartment = ParseApartment(apartmentLink);
+                    apartments.Add(apartment);
+                }
             }
 
-            return new List<Apartment>();
+            return apartments;
         }
 
         #region Get single apartment link
 
+        private Apartment ParseApartment(string url)
+        {
+            return new Apartment();
+        }
+
+        private List<string> GetApartmentLinksOnPage(string html)
+        {
+            List<string> urls = new List<string>();
+
+            return urls;
+        } 
 
 
         #endregion
